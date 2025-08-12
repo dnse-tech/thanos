@@ -31,11 +31,14 @@ else ifeq ($(arch), aarch64)
 else ifeq ($(arch), ppc64le)
 	# ppc64le
 	BASE_DOCKER_SHA=${ppc64le}
+else ifeq ($(arch), s390x)
+	# s390x
+	BASE_DOCKER_SHA=${s390x}
 else
-	echo >&2 "only support amd64, arm64 or ppc64le arch" && exit 1
+	echo >&2 "only support amd64, arm64, ppc64le or s390x arch" && exit 1
 endif
-DOCKER_ARCHS       ?= amd64 arm64 ppc64le
-# Generate three targets: docker-xxx-amd64, docker-xxx-arm64, docker-xxx-ppc64le.
+DOCKER_ARCHS       ?= amd64 arm64 ppc64le s390x
+# Generate four targets: docker-xxx-amd64, docker-xxx-arm64, docker-xxx-ppc64le, docker-xxx-s390x.
 # Run make docker-xxx -n to see the result with dry run.
 BUILD_DOCKER_ARCHS = $(addprefix docker-build-,$(DOCKER_ARCHS))
 TEST_DOCKER_ARCHS  = $(addprefix docker-test-,$(DOCKER_ARCHS))
@@ -157,8 +160,8 @@ crossbuild: ## Builds all binaries for all platforms.
 ifeq ($(GIT_BRANCH), main)
 crossbuild: | $(PROMU)
 	@echo ">> crossbuilding all binaries"
-	# we only care about below two for the main branch
-	$(PROMU) crossbuild -v -p linux/amd64 -p linux/arm64 -p linux/ppc64le
+	# we only care about below platforms for the main branch
+	$(PROMU) crossbuild -v -p linux/amd64 -p linux/arm64 -p linux/ppc64le -p linux/s390x
 else
 crossbuild: | $(PROMU)
 	@echo ">> crossbuilding all binaries"
