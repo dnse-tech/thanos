@@ -1,5 +1,8 @@
 .envrc
 
+# Local act configuration for testing GitHub Actions
+.actrc
+
 /prometheus
 /thanos
 /vendor/

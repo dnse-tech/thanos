@@ -26,3 +26,4 @@ crossbuild:
     - linux/arm64
     - windows/amd64
     - linux/ppc64le
+    - linux/s390x
