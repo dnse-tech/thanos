@@ -6,8 +6,11 @@ name: Build s390x mirror image (thanos)
 # Upstream layers are never rebuilt -- only re-referenced -- so those three
 # manifests stay byte for byte the official Thanos release.
 #
-# Dockerfile.multi-stage's builder stage is not pinned to BUILDPLATFORM, so the
-# Go compile runs under s390x emulation (~35 min for the whole image).
+# The Go binary is cross-compiled on the amd64 runner with promu (the same tool
+# and flags upstream uses for its releases), so QEMU only has to run the few
+# adduser/chown commands of the final Dockerfile.multi-arch stage.
+# Note: Dockerfile.multi-stage cannot be used -- at v0.40.1 it still pins
+# golang:1.24.0 while go.mod requires >= 1.25.0.
 
 on:
   workflow_dispatch:
@@ -80,6 +83,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-compile thanos for linux/s390x
+        run: |
+          set -euo pipefail
+          # promu version is the one pinned in .bingo/promu.mod
+          go install github.com/prometheus/promu@v0.17.0
+          "$(go env GOPATH)/bin/promu" crossbuild -v -p linux/s390x
+          file .build/linux-s390x/thanos
+
       - name: Build and push s390x image
         env:
           TAG: ${{ steps.ver.outputs.tag }}
@@ -89,11 +105,11 @@ jobs:
           docker buildx build \
             --platform linux/s390x \
             --provenance=false --sbom=false \
-            -f Dockerfile.multi-stage \
+            -f Dockerfile.multi-arch \
             --build-arg "BASE_DOCKER_SHA=${BASE_SHA}" \
+            --build-arg ARCH=s390x \
+            --build-arg OS=linux \
             -t "${TARGET_REGISTRY}/${IMAGE}:${TAG}-s390x" \
-            --cache-from type=gha,scope=s390x \
-            --cache-to type=gha,mode=max,scope=s390x \
             --push .
 
       - name: Create multiarch manifest (upstream legs + our s390x)
