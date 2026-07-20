@@ -47,8 +47,23 @@ jobs:
           # GHCR tags are published without the leading "v" (matches 0.39.2).
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "tag=${v#v}" >> "$GITHUB_OUTPUT"
-          # busybox base image digest for the s390x leg
-          echo "base_sha=$(grep '^s390x=' .busybox-versions | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve busybox base digest for s390x
+        id: base
+        run: |
+          set -euo pipefail
+          # .busybox-versions pins per-arch digests, but quay prunes old ones
+          # (every digest in the v0.40.1 file 404s as of this writing), so fall
+          # back to the current s390x child of busybox:latest.
+          sha=$(grep '^s390x=' .busybox-versions | cut -d= -f2)
+          if ! docker buildx imagetools inspect "quay.io/prometheus/busybox@sha256:${sha}" >/dev/null 2>&1; then
+            echo "pinned s390x busybox digest ${sha} is gone from quay; resolving :latest"
+            sha=$(docker buildx imagetools inspect --raw quay.io/prometheus/busybox:latest \
+              | jq -r '.manifests[] | select(.platform.architecture=="s390x") | .digest' | sed 's/^sha256://')
+          fi
+          [ -n "$sha" ]
+          echo "Using busybox s390x base sha256:${sha}"
+          echo "base_sha=${sha}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU (s390x emulation)
         uses: docker/setup-qemu-action@v3
@@ -68,7 +83,7 @@ jobs:
       - name: Build and push s390x image
         env:
           TAG: ${{ steps.ver.outputs.tag }}
-          BASE_SHA: ${{ steps.ver.outputs.base_sha }}
+          BASE_SHA: ${{ steps.base.outputs.base_sha }}
         run: |
           set -euo pipefail
           docker buildx build \
