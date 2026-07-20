@@ -31,8 +31,11 @@ else ifeq ($(arch), aarch64)
 else ifeq ($(arch), ppc64le)
 	# ppc64le
 	BASE_DOCKER_SHA=${ppc64le}
+else ifeq ($(arch), s390x)
+	# s390x
+	BASE_DOCKER_SHA=${s390x}
 else
-	echo >&2 "only support amd64, arm64 or ppc64le arch" && exit 1
+	echo >&2 "only support amd64, arm64, ppc64le or s390x arch" && exit 1
 endif
 DOCKER_ARCHS       ?= amd64 arm64 ppc64le
 # Generate three targets: docker-xxx-amd64, docker-xxx-arm64, docker-xxx-ppc64le.
